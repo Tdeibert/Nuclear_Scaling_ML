@@ -42,3 +42,37 @@ This pipeline performs:
 ---
 
 ## 📁 Repository Structure
+.
+├── notebooks/ # Interactive analysis and debugging
+├── src/ # Core pipeline code
+├── scripts/ # Batch and CLI workflows
+├── configs/ # YAML configuration files
+├── outputs/ # Generated outputs (ignored by git)
+├── README.md
+└── .gitignore
+
+
+---
+🖥️ HPC Usage
+
+Designed for:
+
+GPU acceleration (U-Net inference)
+Batch processing
+Large memory datasets
+
+Typical workflow:
+
+Transfer scripts + configs to cluster
+Run segmentation jobs
+Pull results locally for analysis
+
+## ⚙️ Installation
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/Tdeibert/Nuclear_Scaling_ML.git
+cd Nuclear_Scaling_ML
+
+conda env create -f environment.yml
+conda activate nuclear_scaling
