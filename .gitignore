@@ -216,3 +216,112 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+############################
+# 🐍 Python
+############################
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+############################
+# 📓 Jupyter
+############################
+.ipynb_checkpoints/
+
+############################
+# 🧠 IDE / Editor
+############################
+.vscode/
+.idea/
+*.swp
+*.swo
+
+############################
+# 🧪 Microscopy Data (CRITICAL)
+############################
+# Raw microscopy formats
+*.tif
+*.tiff
+*.ome.tif
+*.nd2
+*.czi
+*.lif
+
+# Large arrays / intermediate data
+*.npy
+*.npz
+
+# Data directories
+data/
+raw/
+processed/
+
+############################
+# 🤖 Machine Learning Models
+############################
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.keras
+*.onnx
+
+models/
+checkpoints/
+
+############################
+# 📊 Outputs / Results
+############################
+outputs/
+results/
+figures/
+
+# Tables (optional — keep if you want versioning)
+*.csv
+*.parquet
+*.feather
+
+############################
+# 🖥️ HPC / Cluster Files
+############################
+*.out
+*.err
+*.log
+
+# Slurm / job scheduler
+slurm-*.out
+
+# Temporary / scratch
+tmp/
+scratch/
+
+############################
+# 🔐 OS files
+############################
+.DS_Store
+Thumbs.db
+
+############################
+# 🔑 Environment / Secrets
+############################
+.env
+.env.*
+
+############################
+# 📦 Misc
+############################
+*.zip
+*.tar
+*.gz
