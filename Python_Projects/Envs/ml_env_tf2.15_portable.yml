@@ -1,0 +1,22 @@
+name: ml_env_tf_2.15
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - h5py
+  - hdf5
+  - ipykernel
+  - jupyterlab
+  - pyzmq
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - scikit-image
+  - scikit-learn
+  - tqdm
+  - opencv
+  - seaborn
+  - notebook
+  - numba
+prefix: /home/tdeibert/.conda/envs/ml_env_tf_2.15
