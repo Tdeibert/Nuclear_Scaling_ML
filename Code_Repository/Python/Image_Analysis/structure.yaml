@@ -1,0 +1,14 @@
+Projects:
+  Nuclear_Scaling:
+    Code_Repository:
+      Python:
+        Environments:
+        Model_Training:
+          Training_Scripts:
+          Trained_Models:
+          Training_Data:
+        Image_Segmentation:
+        Image_Analysis:
+        Utility_Scripts:
+      R_Projects:
+    Data:
