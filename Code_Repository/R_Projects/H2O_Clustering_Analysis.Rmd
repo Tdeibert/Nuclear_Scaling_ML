@@ -1,0 +1,174 @@
+---
+title: "H2O_Clustering_Analysis"
+author: "Timothy Deibert"
+date: "2025-05-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(terra)
+library(h2o)
+library(tidyverse)
+library(sf)
+library(glue)
+# Start H2O
+h2o.init(max_mem_size = "8G")
+```
+
+#### 1. Reading in and formatting the Raster Image #### 
+
+```{r}
+raster_path <- "./Test_Stack.tif"
+img <- rast(raster_path)
+
+n_channels <- 3
+n_z        <- 20
+n_time     <- 2
+expected_layers <- n_channels * n_z * n_time
+actual_layers   <- nlyr(img)
+
+if (actual_layers != expected_layers) {
+  stop(glue::glue("Mismatch in layers: expected {expected_layers}, got {actual_layers}"))
+}
+
+layer_info <- expand_grid(
+  time    = 1:n_time,
+  z       = 1:n_z,
+  channel = 1:n_channels
+) %>%
+  mutate(layer_index = row_number(),
+         layer_name  = str_glue("T{time}_Z{z}_C{channel}"))
+
+names(img) <- layer_info$layer_name
+```
+
+#### 2. Extracting Raster Data into a Long Format Data Frame ####
+
+```{r}
+r_df_labeled <- as.data.frame(img, xy = TRUE, cells = FALSE, na.rm = FALSE) %>%
+  as_tibble() %>%
+  pivot_longer(cols = -c(x, y), names_to = "layer_name", values_to = "intensity") %>%
+  left_join(layer_info, by = "layer_name")
+```
+
+#### 3. Compute Otsu threshold per (channel, z, time) ####
+#sigma is now the intensity value for background for the channel slice.
+```{r}
+calculate_otsu_threshold <- function(intensity_values, nbins = 256) {
+  h <- hist(intensity_values, breaks = nbins, plot = FALSE)
+  p <- h$counts / sum(h$counts)
+  omega <- cumsum(p)
+  mu <- cumsum(p * h$mids)
+  mu_t <- mu[length(mu)]
+  sigma_b_squared <- (mu_t * omega - mu)^2 / (omega * (1 - omega))
+  sigma_b_squared[is.nan(sigma_b_squared)] <- 0
+  threshold <- h$mids[which.max(sigma_b_squared)] 
+  return(threshold)
+}
+```
+
+#### 4. Apply Otsu threshold ####
+```{r}
+otsu_thresholds <- r_df_labeled %>%
+  group_by(channel, z, time) %>%
+  summarise(
+    otsu_thresh = calculate_otsu_threshold(intensity),
+    .groups = "drop"
+  )
+
+r_above_bg <- r_df_labeled %>%
+  left_join(otsu_thresholds, by = c("channel", "z", "time")) %>%
+  filter(intensity > otsu_thresh)
+```
+
+#### 5. Per-layer K-means clustering ####
+
+```{r}
+k_clusters <- 1 
+
+r_clustered <- r_above_bg %>%
+  group_by(channel, z, time) %>%
+  group_modify(~ {
+    h2o_frame <- as.h2o(.x %>% select(x, y))
+    km_model  <- h2o.kmeans(h2o_frame, k = k_clusters, standardize = TRUE, seed = 123)
+    pred      <- h2o.predict(km_model, h2o_frame) %>% as.data.frame()
+    .x %>% mutate(cluster = pred$predict)
+  }) %>%
+  ungroup()
+```
+
+#### 6. Convert to sf and rasterize clustered pixel intensities ####
+```{r}
+intensity_raster <- r_clustered %>%
+  select(x, y, intensity) %>%
+  drop_na() %>%
+  st_as_sf(coords = c("x", "y"), crs = crs(img)) %>%
+  rasterize(img[[1]], field = "intensity")
+
+#Making a cluster Raster 
+cluster_raster <- r_clustered %>%
+  select(x, y, cluster) %>% 
+  drop_na() %>%
+  st_as_sf(coords = c("x", "y"), crs = crs(img)) %>%
+  rasterize(img[[1]], field = "cluster")
+```
+
+#### 7. Plotting Rasters #### 
+
+```{r}
+# Choose the channel
+channel_to_plot <- 2
+
+# Filter for selected channel
+channel_data <- r_clustered %>%
+  filter(channel == channel_to_plot)
+
+# Set up plotting grid
+n_z <- max(channel_data$z)
+plot_cols <- ceiling(sqrt(n_z)) 
+plot_rows <- ceiling(n_z / plot_cols)
+par(mfrow = c(plot_rows, plot_cols), mar = c(1, 1, 2, 1))  # adjust margins
+
+# Loop over Z slices
+for (z_slice in sort(unique(channel_data$z))) {
+  layer_data <- channel_data %>%
+    filter(z == z_slice) %>%
+    select(x, y, cluster) %>%
+    drop_na()
+  
+  if (nrow(layer_data) > 0) {
+    layer_raster <- layer_data %>%
+      st_as_sf(coords = c("x", "y"), crs = crs(img)) %>%
+      rasterize(img[[1]], field = "cluster")
+    
+    plot(layer_raster, main = glue("Channel {channel_to_plot}, Z {z_slice}"))
+  } else {
+    plot.new()
+    title(main = glue("Channel {channel_to_plot}, Z {z_slice}\n(no data)"))
+  }
+}
+```
+
+#### 8. Making Masks Based on Clusters ####
+```{r}
+testr<- r_df_labeled %>% 
+  filter(layer_name == "T1_Z8_C2") %>%
+  left_join(r_clustered %>% 
+              filter(layer_name == "T1_Z8_C2"), by = c("x", "y", "layer_name")) %>% 
+  st_as_sf(coords = c("x", "y"), crs = crs(img)) %>%
+  vect() %>% 
+  rasterize(y = img[[1]], field = "cluster")
+  
+testp<-testr %>% 
+  as.polygons() %>% 
+  st_as_sf() %>% 
+  st_cast("POLYGON") %>% 
+  mutate(area = st_area(geometry),
+         polyid = 1:n()) %>% 
+  filter(area > 10)
+
+test<- mask(img[[22:24]], testp)
+global(test, "sum", na.rm = TRUE)
+plot(test)
+```
+

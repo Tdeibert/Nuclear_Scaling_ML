@@ -325,3 +325,9 @@ Thumbs.db
 *.zip
 *.tar
 *.gz
+.pptx
+.html
+.xlxs
+.png
+.jpeg
+.Rproj
