@@ -1,0 +1,21 @@
+{
+    "Projects":{
+        "Nuclear_Scaling": {
+            "Code_Repository":{
+                "Python": {
+                    "Environments": null,
+                    "Model_Training": {
+                        "Training_Scripts": null,
+                        "Trained_Models": null,
+                        "Training_Data": null
+                    },
+                    "Image_Segmentation": null,
+                    "Image_Analysis": null,
+                    "Utility_Scripts": null
+                },
+                "R_Projects": null
+            },
+            "Data": null
+        }
+    }
+}
