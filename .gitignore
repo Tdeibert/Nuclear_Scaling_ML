@@ -330,4 +330,20 @@ Thumbs.db
 .xlxs
 .png
 .jpeg
-.Rproj
+.Rproj############################
+# 🔧 Fixes
+############################
+# Capital D data directory (Cheaha convention)
+Data/
+
+# Fix wildcard patterns (were missing *)
+*.pptx
+*.html
+*.xlsx
+*.png
+*.jpeg
+*.jpg
+
+# Credential files
+.git-credentials
+*_token*
