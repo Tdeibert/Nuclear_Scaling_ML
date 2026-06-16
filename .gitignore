@@ -347,3 +347,5 @@ Data/
 # Credential files
 .git-credentials
 *_token*
+
+Legacy_Costs/
