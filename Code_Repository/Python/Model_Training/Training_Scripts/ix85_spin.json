@@ -1,0 +1,14 @@
+{
+  "name": "ix85_spin",
+  "scope_model": "Evident IXplore IX85 Spin (Yokogawa CSU-W1, 50 um pinhole disk)",
+  "camera_model": "Hamamatsu ORCA-Flash 4.0",
+  "camera_pixel_um": 6.5,
+  "camera_sensor_px": [2048, 2048],
+  "objective": "UPLXAPO40X",
+  "objective_mag": 40.0,
+  "objective_na": 0.8,
+  "objective_immersion": "air",
+  "coupler_mag": 1.0,
+  "confocal_zoom": 1.0,
+  "field_number": 22.0
+}
