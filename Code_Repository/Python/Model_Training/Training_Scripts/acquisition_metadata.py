@@ -46,12 +46,38 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-RIG_DIR = Path(__file__).parent / "rigs"
+def _candidate_rig_dirs(rig_dir=None, search_from=None) -> list[Path]:
+    """Where to look for a rig definition, in priority order.
+
+    Anchoring to the module directory alone is brittle: the acquisition sidecar,
+    the rig file, and the module do not have to live in the same place, and on
+    HPC they often do not. Search instead, and say what was searched on failure.
+    """
+    out: list[Path] = []
+    if rig_dir:
+        out.append(Path(rig_dir))
+    env = os.environ.get("NUCLEAR_SCALING_RIG_DIR")
+    if env:
+        out += [Path(env), Path(env) / "rigs"]
+    if search_from:                       # next to the acquisition JSON
+        sf = Path(search_from).resolve()
+        out += [sf / "rigs", sf, sf.parent / "rigs"]
+    here = Path(__file__).resolve().parent
+    out += [here / "rigs", here]
+    cwd = Path.cwd().resolve()
+    out += [cwd / "rigs", cwd]
+    seen, uniq = set(), []
+    for d in out:
+        if d not in seen:
+            seen.add(d)
+            uniq.append(d)
+    return uniq
 
 
 # ---------------------------------------------------------------------------
@@ -91,13 +117,34 @@ class Rig:
         return (wavelength_nm / (2.0 * self.objective_na)) / 2.0 / 1000.0
 
     @classmethod
-    def load(cls, name: str, rig_dir: Path = RIG_DIR) -> "Rig":
-        path = rig_dir / f"{name}.json"
-        if not path.exists():
-            raise FileNotFoundError(
-                f"rig '{name}' not found at {path}. "
-                f"Known rigs: {[p.stem for p in rig_dir.glob('*.json')]}")
-        d = json.loads(path.read_text())
+    def load(cls, name: str, rig_dir=None, search_from=None) -> "Rig":
+        """`name` may be a bare rig name or a path to a rig JSON."""
+        cand = Path(name)
+        if cand.suffix == ".json" or cand.is_absolute() or len(cand.parts) > 1:
+            if cand.exists():
+                return cls._from_file(cand)
+            raise FileNotFoundError(f"rig file not found: {cand}")
+
+        searched, found = [], []
+        for d in _candidate_rig_dirs(rig_dir, search_from):
+            searched.append(d)
+            p = d / f"{name}.json"
+            if p.exists():
+                return cls._from_file(p)
+            if d.is_dir():
+                found += [q.stem for q in d.glob("*.json")]
+
+        raise FileNotFoundError(
+            f"rig '{name}' not found. Searched:\n  " +
+            "\n  ".join(str(d) for d in searched) +
+            (f"\nJSON files seen in those dirs: {sorted(set(found))}"
+             if found else "\nNo JSON files found in any of them.") +
+            f"\nFix: put {name}.json in one of the above, set "
+            f"NUCLEAR_SCALING_RIG_DIR, or set \"rig_name\" to a full path.")
+
+    @classmethod
+    def _from_file(cls, path: Path) -> "Rig":
+        d = json.loads(Path(path).read_text())
         d["camera_sensor_px"] = tuple(d.get("camera_sensor_px", (0, 0)))
         return cls(**d)
 
@@ -149,12 +196,14 @@ class Acquisition:
     notes: str = ""
 
     _rig: Rig | None = field(default=None, repr=False, compare=False)
+    _source_path: Path | None = field(default=None, repr=False, compare=False)
 
     # -- derived -----------------------------------------------------------
     @property
     def rig(self) -> Rig:
         if self._rig is None:
-            self._rig = Rig.load(self.rig_name)
+            here = self._source_path.parent if self._source_path else None
+            self._rig = Rig.load(self.rig_name, search_from=here)
         return self._rig
 
     @property
@@ -180,21 +229,27 @@ class Acquisition:
     def to_dict(self) -> dict:
         d = asdict(self)
         d.pop("_rig", None)
+        d.pop("_source_path", None)
         d["mosaic"] = asdict(self.mosaic)
         d["channels"] = [asdict(c) for c in self.channels]
         return d
 
     def save(self, path: Path) -> None:
         path = Path(path)
+        self._source_path = path.resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self.to_dict(), indent=2) + "\n")
 
     @classmethod
     def load(cls, path: Path, validate: bool = True) -> "Acquisition":
-        d = json.loads(Path(path).read_text())
+        path = Path(path)
+        d = json.loads(path.read_text())
+        d.pop("_rig", None)
+        d.pop("_source_path", None)
         d["channels"] = [Channel(**c) for c in d.get("channels", [])]
         d["mosaic"] = Mosaic(**d.get("mosaic", {}))
         acq = cls(**d)
+        acq._source_path = path.resolve()
         if validate:
             problems = acq.validate()
             fatal = [p for p in problems if p.startswith("ERROR")]
@@ -255,7 +310,16 @@ class Acquisition:
         probe = probe_tiff(image_path)
         out: list[str] = []
 
+        if probe.get("probe_error"):
+            out.append(f"NOTE: could not read {Path(image_path).name}: "
+                       f"{probe['probe_error']}")
         px_file = probe.get("pixel_size_um")
+        if px_file is None:
+            out.append(
+                f"NOTE: {Path(image_path).name} carries no spatial calibration "
+                f"({probe.get('uncalibrated_reason', 'unknown')}), so the "
+                f"derived {self.pixel_size_um:.4f} um/px cannot be cross-checked "
+                f"against it. Verified instead by the mosaic arithmetic.")
         if px_file:
             if abs(px_file - self.pixel_size_um) / self.pixel_size_um > 0.02:
                 out.append(
@@ -266,6 +330,8 @@ class Acquisition:
                 out.append(f"OK: pixel size agrees with file ({px_file:.4f} um/px)")
 
         z_file = probe.get("z_step_um")
+        if z_file is None:
+            out.append("NOTE: no z-step in file metadata either.")
         if z_file and self.z_step_um:
             if abs(z_file - self.z_step_um) > 1e-3:
                 out.append(
@@ -304,18 +370,24 @@ class Acquisition:
 # TIFF probing
 # ---------------------------------------------------------------------------
 def probe_tiff(path: Path) -> dict[str, Any]:
-    """Pull whatever the file already carries. Best-effort, never raises."""
+    """Pull whatever the file already carries. Best-effort, never raises.
+
+    Calibration is only reported when the file actually claims to be
+    calibrated. An uncalibrated TIFF carries XResolution = 1/1, which reads out
+    as "1.0 um/px" and is not a measurement — treating it as one produces a
+    spurious conflict with the derived value.
+    """
     import tifffile as tiff
 
     out: dict[str, Any] = {}
     try:
         with tiff.TiffFile(str(path)) as tf:
             arr = tf.series[0]
-            shape, axes = arr.shape, arr.axes
-            for ax, n in zip(axes, shape):
+            for ax, n in zip(arr.axes, arr.shape):
                 out[{"T": "n_t", "Z": "n_z", "C": "n_c",
                      "Y": "height_px", "X": "width_px"}.get(ax, ax)] = int(n)
 
+            # ---- OME: units are explicit, so trust it ----
             if tf.is_ome and tf.ome_metadata:
                 try:
                     root = ET.fromstring(tf.ome_metadata)
@@ -327,26 +399,70 @@ def probe_tiff(path: Path) -> dict[str, Any]:
                                           ("time_interval_s", "TimeIncrement")):
                             if px.get(attr):
                                 out[key] = float(px.get(attr))
+                                out["calibration_source"] = "OME"
                         out["ome_channels"] = [
                             c.get("Name") or c.get("Fluor") or ""
                             for c in px.findall("ome:Channel", ns)]
                 except ET.ParseError:
                     pass
 
-            if tf.is_imagej and tf.imagej_metadata:
+            # ---- ImageJ: the `unit` string is authoritative ----
+            if tf.is_imagej and tf.imagej_metadata and "pixel_size_um" not in out:
                 ij = tf.imagej_metadata
-                if "spacing" in ij:
-                    out.setdefault("z_step_um", float(ij["spacing"]))
-                if "finterval" in ij:
-                    out.setdefault("time_interval_s", float(ij["finterval"]))
+                unit = str(ij.get("unit", "")).strip().lower()
+                micron = unit in ("micron", "microns", "um", "\u00b5m", "\u03bcm")
+                if not micron:
+                    out["uncalibrated_reason"] = (
+                        f"ImageJ unit is {unit!r}" if unit
+                        else "ImageJ metadata has no `unit` field")
+                else:
+                    out["calibration_source"] = "ImageJ"
+                    if "spacing" in ij:
+                        out["z_step_um"] = abs(float(ij["spacing"]))
+                    if "finterval" in ij:
+                        out["time_interval_s"] = float(ij["finterval"])
+                    p0 = tf.pages[0]
+                    if "XResolution" in p0.tags:
+                        num, den = p0.tags["XResolution"].value
+                        if num:
+                            out["pixel_size_um"] = float(den) / float(num)
+
+            # ---- plain TIFF: only inch/cm resolution units mean anything ----
+            if "pixel_size_um" not in out and not tf.is_imagej and not tf.is_ome:
                 p0 = tf.pages[0]
-                if "XResolution" in p0.tags:
-                    num, den = p0.tags["XResolution"].value
-                    if num:
-                        out.setdefault("pixel_size_um", float(den) / float(num))
-    except Exception as e:  # probing must never block the pipeline
+                runit = p0.tags["ResolutionUnit"].value if "ResolutionUnit" in p0.tags else None
+                runit = int(getattr(runit, "value", runit) or 1)
+                xres = p0.tags["XResolution"].value if "XResolution" in p0.tags else None
+                if runit in (2, 3) and xres and xres[0]:
+                    per_unit = float(xres[0]) / float(xres[1])
+                    um_per_unit = 25400.0 if runit == 2 else 10000.0
+                    out["pixel_size_um"] = um_per_unit / per_unit
+                    out["calibration_source"] = "TIFF ResolutionUnit"
+                else:
+                    out["uncalibrated_reason"] = (
+                        f"ResolutionUnit={runit} (no absolute unit), "
+                        f"XResolution={xres}")
+
+            if "pixel_size_um" not in out and "uncalibrated_reason" not in out:
+                out["uncalibrated_reason"] = "no usable resolution metadata"
+    except Exception as e:
         out["probe_error"] = str(e)
     return out
+
+
+def imagej_calibration(cfg) -> dict:
+    """kwargs for tifffile.imwrite so OUR outputs are calibrated.
+
+    The source hyperstack is uncalibrated, which is why reconcile cannot check
+    it. No reason to propagate that: every TIFF this pipeline writes should
+    carry the derived scale so it opens correctly in Fiji and napari.
+    """
+    return dict(
+        imagej=True,
+        resolution=(1.0 / cfg.pixel_size_um, 1.0 / cfg.pixel_size_um),
+        metadata={"axes": "TZYX", "unit": "micron",
+                  "spacing": float(cfg.z_step_um)},
+    )
 
 
 # ---------------------------------------------------------------------------
