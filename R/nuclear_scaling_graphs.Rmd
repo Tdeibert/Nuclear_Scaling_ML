@@ -1,0 +1,79 @@
+---
+title: "Nuclear Scaling – Area and N/C Report"
+author: "Timothy Deibert"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,       # hide code by default in HTML UI, but user can expand
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 5
+)
+
+# Load required packages
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+library(gt)
+
+source("nuclear_scaling_analysis.R")
+print("Script successfully sourced!")
+```
+
+Duel Axis Control Plot
+
+```{r}
+plot_dual_axis(Control_Data, Control)
+```
+
+Control Box Plot
+
+```{r}
+ plot_single_box(Control_Binned, Control)
+```
+
+Duel Axis P150 Plot
+
+```{r}
+plot_dual_axis(P150_filtered, P150)
+```
+
+P150 Box Plot
+
+```{r}
+plot_single_box(P150_Binned, P150)
+```
+
+Duel Axis CDR2 Plot
+
+```{r}
+plot_dual_axis(CDR2_Data, CDR2)
+```
+
+CDR2 Box Plot
+
+```{r}
+plot_single_box(CDR2_Binned, CDR2)
+```
+
+Comaprison Plot
+
+```{r}
+plot_full
+```
+
+P Values Table
+
+```{r}
+p_table
+```

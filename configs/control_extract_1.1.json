@@ -1,0 +1,23 @@
+{
+  "experiment_id": "control_extract_1.1",
+  "fov_id": "FOV01",
+  "droplet_id": "UNASSIGNED",
+  "experimental_group": "control",
+  "treatment": "none",
+  "concentration": 0.0,
+  "extract_batch": "EB-2026-09-03",
+  "experiment_date": "2026-09-03",
+  "operator": "tdeibert",
+  "pixel_size_um": 0.1625,
+  "z_step_um": 2.0,
+  "num_z_planes": 17,
+  "frame_interval_min": 6.0,
+  "tile_rows": 2,
+  "tile_cols": 3,
+  "minutes_per_tile": 1.0,
+  "serpentine_scan": true,
+  "microscope": "Evident IXplore IX85 Spin",
+  "objective": "40x NA 0.8 air",
+  "segmentation_pipeline_version": "v18.1",
+  "model_version": "Vulcan_1.1_best.keras"
+}

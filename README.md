@@ -42,14 +42,35 @@ This pipeline performs:
 ---
 
 ## 📁 Repository Structure
-.
-├── notebooks/ # Interactive analysis and debugging
-├── src/ # Core pipeline code
-├── scripts/ # Batch and CLI workflows
-├── configs/ # YAML configuration files
-├── outputs/ # Generated outputs (ignored by git)
-├── README.md
-└── .gitignore
+
+```
+Nuclear_Scaling/
+├── src/                  importable modules (nsdb, nsplots, radial_surface,
+│                         experiment_config, paths_config, project_paths)
+├── scripts/              runnable entry points
+│   ├── build_db.py       rebuild the database from a CSV export
+│   ├── database_tools/   schema creation + import utilities (self-contained)
+│   ├── scaffold/         build_dirs.py + structure.{json,py,yaml,yml}
+│   └── training/         acquisition_metadata.py, mine_cap_negatives.py, rigs/
+├── sql/                  schema_v2.sql, views.sql
+├── configs/              experiment JSON + environments/*.yml
+├── notebooks/
+│   ├── analysis/         Nuclear_Scaling_Analysis, Large_FOV_* diagnostics
+│   ├── segmentation/     Gold_Standard_*, Label_Generation_QC, Large_FOV v17-v18.1
+│   ├── model_training/   vulcan_training_1.1
+│   ├── utilities/        loaders, converters, plotting.py
+│   ├── refactors/        in-flight rewrites (gitignored)
+│   └── deprecated/       superseded versions, by area
+├── R/                    tidyverse downstream visualisation
+├── data/                 (gitignored)
+│   ├── raw/              original .tif hyperstacks -- read-only
+│   ├── derived/          parquet radial profiles etc.
+│   └── db/               nuclear_scaling.db, nuclear_scaling_test.db
+│       └── exports/      CSV staging for the importer -- temporary
+├── models/               saved weights (Vulcan_1.0.keras)
+├── outputs/figures/      generated figures
+└── docs/                 talks, references
+```
 
 
 ---

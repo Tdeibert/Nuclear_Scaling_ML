@@ -20,21 +20,35 @@ pip install <pkg> --break-system-packages  # if pip installs are ever needed out
 ```
 
 ## Project Structure
+Restructured 2026-09-04 to the README layout. `src/` goes on `sys.path`
+(not the project root); the analysis notebook anchors on `src/nsdb.py`.
 ```
-Nuclear_Scaling_ML/
+Nuclear_Scaling/
+├── src/                  importable modules (nsdb, nsplots, radial_surface,
+│                         experiment_config, paths_config, project_paths)
+├── scripts/              runnable entry points
+│   ├── build_db.py       rebuild the database from a CSV export
+│   ├── database_tools/   schema creation + import utilities (self-contained)
+│   ├── scaffold/         build_dirs.py + structure.{json,py,yaml,yml}
+│   └── training/         acquisition_metadata.py, mine_cap_negatives.py, rigs/
+├── sql/                  schema_v2.sql, views.sql
+├── configs/              experiment JSON + environments/*.yml
 ├── notebooks/
-│   ├── Label_Generation_QC_v1.ipynb      # ACTIVE — label rebuild from scratch
-│   └── Nuclear_Segmentation_v8.1.ipynb   # training notebook (stale v8 labels — do not use outputs)
-├── scripts/
-│   └── build_dirs.py                     # directory scaffold utility
-├── configs/                              # YAML/JSON pipeline configs
-├── data/
-│   ├── raw/                              # original .tif hyperstacks (read-only)
-│   ├── patches/                          # extracted image patches
-│   └── labels/                          # generated label masks
-├── models/                              # saved model weights
-├── outputs/                             # inference results, QC figures
-└── docs/                                # session notes, ad-hoc references
+│   ├── analysis/         Nuclear_Scaling_Analysis, Large_FOV_* diagnostics
+│   ├── segmentation/     Gold_Standard_*, Label_Generation_QC, Large_FOV v17-v18.1
+│   ├── model_training/   vulcan_training_1.1
+│   ├── utilities/        loaders, converters, plotting.py
+│   ├── refactors/        in-flight rewrites (gitignored)
+│   └── deprecated/       superseded versions, by area
+├── R/                    tidyverse downstream visualisation
+├── data/                 (gitignored)
+│   ├── raw/              original .tif hyperstacks -- read-only
+│   ├── derived/          parquet radial profiles etc.
+│   └── db/               nuclear_scaling.db, nuclear_scaling_test.db
+│       └── exports/      CSV staging for the importer -- temporary
+├── models/               saved weights (Vulcan_1.0.keras)
+├── outputs/figures/      generated figures
+└── docs/                 talks, references
 ```
 
 ## Experimental System (read before touching segmentation logic)

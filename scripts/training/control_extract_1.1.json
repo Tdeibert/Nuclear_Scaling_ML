@@ -1,0 +1,48 @@
+{
+  "image_filename": "control_extract_1.1.tif",
+  "rig_name": "ix85_spin",
+  "sample": "RAN008 oil-interface droplets, Xenopus egg extract + demembranated sperm nuclei",
+  "experiment_id": "control_extract_1.1",
+  "date": "",
+  "z_step_um": 2.0,
+  "time_interval_s": 60.0,
+  "n_t": 10,
+  "n_z": 20,
+  "height_px": 3889,
+  "width_px": 5732,
+  "channels": [
+    {
+      "index": 0,
+      "role": "membrane",
+      "fluorophore": "DiO",
+      "excitation_nm": 488.0,
+      "emission_filter": "",
+      "exposure_ms": 500.0,
+      "laser_power_pct": null
+    },
+    {
+      "index": 1,
+      "role": "nls",
+      "fluorophore": "SV40-NLS",
+      "excitation_nm": 561.0,
+      "emission_filter": "",
+      "exposure_ms": 250.0,
+      "laser_power_pct": null
+    },
+    {
+      "index": 2,
+      "role": "npc",
+      "fluorophore": "mAb414 Alexa Fluor",
+      "excitation_nm": 640.0,
+      "emission_filter": "",
+      "exposure_ms": 350.0,
+      "laser_power_pct": null
+    }
+  ],
+  "mosaic": {
+    "tiles_x": 3,
+    "tiles_y": 2,
+    "overlap_frac": 0.1
+  },
+  "notes": "Undersampled at 488 nm by design — traded for acquisition speed and reduced photobleaching. Excitation line for the NLS channel listed as 551 in the imaging table; recorded here as 561 to match the IX85 Spin combiner. [VERIFY]"
+}

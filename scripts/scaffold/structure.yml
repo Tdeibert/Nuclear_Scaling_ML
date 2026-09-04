@@ -1,0 +1,13 @@
+Defining system directory architectures for consistant pathing between operating systems. 
+
+Projects:
+  Code_Repository:
+    Python:
+      Environments:
+      Model_Training:
+        Trained_Models:
+        Training_Data:
+      Image_Segmentation:
+      Image_Analysis:
+    R_Projects:
+  Data:
