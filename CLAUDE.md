@@ -73,7 +73,21 @@ Nuclear_Scaling/
 - All outputs must produce a **binary mask hyperstack TIFF** for ROI generation (do not measure directly)
 
 ## Code Style & Workflow Preferences
-- Anton writes code independently — provide guidance, logic checks, and feedback; do not paste complete solutions unless explicitly asked
+- **Claude writes and verifies the code.** Anton is a domain expert, not a
+  programmer, and cannot check an implementation by reading it. Never ask him to
+  review code, evaluate a diff, or judge a technical suggestion — the
+  correctness of anything written is entirely Claude's responsibility.
+- **Verify by running, not by inspecting.** Static checks (syntax, undefined
+  names) are not verification. Exercise changed code against real data before
+  reporting it works, and say plainly which claims are measured and which are
+  untested. `selfcheck()` in the training notebook runs the review pipeline
+  end-to-end against a sandbox and prints plain-English PASS/FAIL.
+- **Do not change code that cannot be tested here** (matplotlib/ipympl event
+  delivery, browser behaviour) to fix a minor annoyance. Leave working code alone.
+- Questions for Anton are about images, biology, and experimental design — the
+  things he can answer and Claude cannot.
+- Address notebook cells by content, never by index: he edits the notebook
+  concurrently and indices shift.
 - Watch for: assignment vs. comparison operators (`=` vs `==`), indentation scope errors
 - Parallelism: `joblib.Parallel` with loky backend; pass file paths to workers, not memmaps
 - Python is the analysis engine; R/tidyverse is downstream visualization only
