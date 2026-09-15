@@ -30,6 +30,13 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--notebook", type=Path, default=DEFAULT_NB)
 ap.add_argument("--dry-run", action="store_true",
                 help="stop before the training cell")
+ap.add_argument("--with-inference", action="store_true",
+                help="also run the cells after training (inference, "
+                     "post-processing, evaluate_inference). Off by default: on "
+                     "2026-09-14 job 40170827 spent 1.3 h running these against "
+                     "a model whose loss had gone NaN at epoch 2, producing "
+                     "Section 18 numbers that meant nothing. Check the history "
+                     "CSV first, then run these interactively.")
 args = ap.parse_args()
 
 # Headless: no display, and plt.show() must not block or try to draw.
@@ -74,6 +81,11 @@ for idx, src in code:
     head = next((l for l in src.split("\n") if l.strip() and not l.strip().startswith("#")), "")
     print(f"\n=== cell {idx} ({time.time()-t_start:6.1f}s) | {head[:70]}", flush=True)
     exec(compile(src, f"<cell {idx}>", "exec"), G)
+
+    if idx == train_cell and not args.with_inference:
+        print(f"\n--- training cell {idx} done; stopping (pass --with-inference "
+              f"to continue into Section 16-18) ---", flush=True)
+        break
 
     if not _patched and "tf" in G:
         # Per-step progress bars are unreadable in a SLURM log (6746 steps/epoch).
