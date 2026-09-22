@@ -1,7 +1,7 @@
 #!/bin/bash
-# Vulcan 2.5 phase-1 training, submitted as a batch job.
+# Vulcan 2.5.2 training, submitted as a batch job.
 #
-#   sbatch scripts/training/train_vulcan_2_5.sbatch
+#   sbatch Code_Repository/Python/Model_Training/train_vulcan_2_5.sbatch
 #
 # Partition choice (measured 2026-09-14, ~5.1 min/epoch, 200 epochs = ~17 h):
 #
@@ -21,15 +21,15 @@
 # SLURM_CPUS_PER_TASK and is a hashed config field, so a different value sends
 # the run to a different run_dir.
 
-#SBATCH --job-name=vulcan25_p1
+#SBATCH --job-name=vulcan252
 #SBATCH --partition=amperenodes
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=11:00:00
-#SBATCH --output=/home/tdeibert/Data/Machine_Learning_Dev/Outputs/slurm/vulcan25_p1_%j.out
-#SBATCH --error=/home/tdeibert/Data/Machine_Learning_Dev/Outputs/slurm/vulcan25_p1_%j.err
+#SBATCH --output=/home/tdeibert/Projects/Nuclear_Scaling/Models/vulcan252_%j.out
+#SBATCH --error=/home/tdeibert/Projects/Nuclear_Scaling/Models/vulcan252_%j.err
 
 set -euo pipefail
 
@@ -43,6 +43,6 @@ echo "start  : $(date)"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 
 cd "$REPO"
-"$PY" -u scripts/training/run_notebook_training.py
+"$PY" -u Code_Repository/Python/Model_Training/run_notebook_training.py
 
 echo "end    : $(date)"

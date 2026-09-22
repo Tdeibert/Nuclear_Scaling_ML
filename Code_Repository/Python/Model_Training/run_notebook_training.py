@@ -1,4 +1,4 @@
-"""Run vulcan_training_2_5.ipynb headlessly, up to and including training.
+"""Run vulcan_training_2_5_2.ipynb headlessly, up to and including training.
 
 Executes the notebook's CODE cells in order into one namespace -- the same
 thing the kernel does when you Run All -- and stops after the cell that calls
@@ -23,8 +23,8 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
-DEFAULT_NB = REPO / "notebooks" / "model_training" / "vulcan_training_2_5.ipynb"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_NB = Path(__file__).resolve().parent / "vulcan_training_2_5_2.ipynb"
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--notebook", type=Path, default=DEFAULT_NB)
@@ -43,8 +43,10 @@ args = ap.parse_args()
 import matplotlib
 matplotlib.use("Agg")
 
-# Cell 2's _resolve_script_dir() walks up from cwd to find scripts/training.
-os.chdir(REPO)
+# Match interactive launches: the notebook resolves Repository_Structure.json
+# by walking up from cwd/__file__, and shared code comes from the installed
+# nuclear_scaling package.
+os.chdir(PROJECT_ROOT)
 
 cells = json.loads(args.notebook.read_text())["cells"]
 code = [(i, "".join(c["source"])) for i, c in enumerate(cells) if c["cell_type"] == "code"]
