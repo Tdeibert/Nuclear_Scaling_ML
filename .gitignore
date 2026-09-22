@@ -1,18 +1,17 @@
 ############################################################
 # Nuclear_Scaling — .gitignore
 #
-# Rewritten 2026-09-04 as an ALLOWLIST rather than a
-# denylist. The old 373-line denylist is still in git history:
-#     git show HEAD:.gitignore
+# ALLOWLIST, not a denylist (introduced 2026-09-04; allow-list
+# updated 2026-09-22 for the Code_Repository layout defined in
+# Repository_Structure.json).
 #
 # Why: this folder is what gets pushed to
-# github.com/Tdeibert/Nuclear_Scaling_ML, and it contains a 103 GB
-# data tree. A denylist fails open — anything you add that no rule
-# happens to match gets committed. An allowlist fails closed:
-# nothing is pushed unless it is named here.
+# github.com/Tdeibert/Nuclear_Scaling_ML. A denylist fails open:
+# anything no rule matches gets committed. An allowlist fails
+# closed: nothing is pushed unless it is named here.
 #
-# The repo holds SOURCE ONLY: notebooks, scripts, database code,
-# schema, configs, R. No data, no models, no figures, no docs.
+# The repo holds SOURCE ONLY. Models/ (training) and _to_delete/
+# live here but are ignored; data lives in /data/user/tdeibert.
 ############################################################
 
 # ---- Deny everything at the top level ... ----
@@ -22,20 +21,8 @@
 !/.gitignore
 !/README.md
 !/CLAUDE.md
-!/notebooks/
-!/scripts/
-!/src/
-!/sql/
-!/configs/
-!/R/
-
-############################################################
-# Exclusions inside the allowed tree
-############################################################
-
-# In-flight rewrites — was `Refactors/` before the restructure,
-# ignored then and ignored now.
-/notebooks/refactors/
+!/Repository_Structure.json
+!/Code_Repository/
 
 ############################################################
 # Belt and braces: file types that must never be committed,

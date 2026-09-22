@@ -1,0 +1,21 @@
+# Nuclear_Scaling_Core: installable package for the project's shared modules.
+# Install once per conda environment, from this folder:
+#     pip install -e . --no-deps
+# Rationale and rules: see README.md in this folder.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nuclear-scaling-core"
+version = "0.1.0"
+description = "Shared modules for the Nuclear Scaling project: database access, experiment config, project paths, plotting, radial analysis"
+requires-python = ">=3.10"
+# Intentionally empty. The conda environments provide numpy, pandas, etc.
+# Declaring nothing here means pip can never modify a pinned stack (ml_tf_2.15),
+# even if someone forgets --no-deps.
+dependencies = []
+
+[tool.setuptools]
+packages = ["nuclear_scaling"]

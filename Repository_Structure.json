@@ -1,0 +1,369 @@
+{
+  "_schema": {
+    "version": "1.0",
+    "description": "Canonical directory layout for the Nuclear Scaling project. Every directory is an object. Keys starting with '_' are metadata; every other key is a subdirectory. Anything not listed here does not belong in the tree.",
+    "metadata_keys": {
+      "_path": "Absolute path of a root (same on every machine)",
+      "_desc": "What belongs in this directory",
+      "_machines": "Where the directory exists: local, cheaha",
+      "_git": "tracked (in the repo) | ignored (inside the repo folder but listed in .gitignore) | n/a (outside the repo)",
+      "_created_by": "scaffold (created once, by hand or script) | the notebook that creates it at run time",
+      "_pattern": "Naming pattern for directories created at run time",
+      "_files": "Expected files (informational)",
+      "_run_template": "Structure of each pipeline-created run folder; not created by the scaffold"
+    },
+    "conventions": {
+      "one_current_version": "Each active folder holds only the version currently in use. Older versions live under Code_Repository/Deprecated/ at the same relative path.",
+      "retiring_a_version": [
+        "1. Tag the repo while the old version still works: git tag <tool>-v<version> && git push --tags",
+        "2. Move it with git mv (not a plain mv) so its history follows: git mv Python/<folder>/<file> Deprecated/Python/<folder>/<file>",
+        "3. Add one line to Deprecated/DEPRECATED.md: file, date, replaced by, reason",
+        "4. Commit and push from ONE machine, then pull everywhere else"
+      ],
+      "tag_naming": {
+        "pattern": "<tool>-v<version>",
+        "examples": [
+          "pipeline-v16.2",
+          "pipeline-v18.1",
+          "vulcan-v2.0",
+          "vulcan-v2.5"
+        ],
+        "recover": "git checkout <tag> gives a runnable copy of the whole repo as it was at that version"
+      },
+      "deprecated_vs_to_delete": "Deprecated/ is permanent and tracked: code you built on. _to_delete/ is temporary and gitignored: files awaiting your review before deletion."
+    }
+  },
+  "code_root": {
+    "_path": "$HOME/Projects/Nuclear_Scaling",
+    "_desc": "Parent folder for all project code and the git root (github.com/Tdeibert/Nuclear_Scaling_ML). Only this root is under git; the data root never is.",
+    "_machines": [
+      "local",
+      "cheaha"
+    ],
+    "_git": "tracked",
+    "_created_by": "git clone",
+    "_files": [
+      ".gitignore",
+      "README.md",
+      "CLAUDE.md",
+      "Repository_Structure.json"
+    ],
+    "Code_Repository": {
+      "_desc": "All source code: R and Python. Moves and renames are made on ONE machine, pushed, and pulled everywhere else.",
+      "_machines": [
+        "local",
+        "cheaha"
+      ],
+      "_git": "tracked",
+      "_created_by": "git clone",
+      "R": {
+        "_desc": "Downstream statistics and visualization",
+        "_git": "tracked",
+        "_created_by": "scaffold",
+        "Projects": {
+          "_desc": "RStudio .Rproj files",
+          "_git": "tracked",
+          "_created_by": "scaffold"
+        },
+        "Plotting_Scripts": {
+          "_desc": "ggplot2 figure scripts",
+          "_git": "tracked",
+          "_created_by": "scaffold"
+        },
+        "Analysis_Scripts": {
+          "_desc": "Statistical analysis scripts",
+          "_git": "tracked",
+          "_created_by": "scaffold"
+        }
+      },
+      "Python": {
+        "_desc": "All Python notebooks and modules",
+        "_git": "tracked",
+        "_created_by": "scaffold",
+        "Configs": {
+          "_desc": "Pipeline and training configuration files",
+          "_git": "tracked",
+          "_created_by": "scaffold",
+          "Rigs": {
+            "_desc": "Microscope rig definitions",
+            "_git": "tracked",
+            "_created_by": "scaffold",
+            "_files": [
+              "ix85_spin.json"
+            ]
+          },
+          "Environments": {
+            "_desc": "Conda environment files (*.yml) for recreating the project environments",
+            "_git": "tracked",
+            "_created_by": "scaffold"
+          }
+        },
+        "Analysis": {
+          "_desc": "Analysis notebooks that query the database",
+          "_git": "tracked",
+          "_created_by": "scaffold",
+          "Minerva": {
+            "_desc": "Minerva plans (*.minerva.yaml) for the Analysis code",
+            "_git": "tracked",
+            "_created_by": "scaffold"
+          }
+        },
+        "Image_Segmentation": {
+          "_desc": "Segmentation pipeline notebooks (LARGE_FOV_Nuclear_Pipeline_v*)",
+          "_git": "tracked",
+          "_created_by": "scaffold",
+          "Minerva": {
+            "_desc": "Minerva plans (*.minerva.yaml) for the Image_Segmentation code",
+            "_git": "tracked",
+            "_created_by": "scaffold"
+          }
+        },
+        "Model_Training": {
+          "_desc": "Vulcan training notebooks",
+          "_git": "tracked",
+          "_created_by": "scaffold",
+          "Minerva": {
+            "_desc": "Minerva plans (*.minerva.yaml) for the Model_Training code",
+            "_git": "tracked",
+            "_created_by": "scaffold"
+          }
+        },
+        "Database": {
+          "_desc": "ADDED: importer, DB access layer, and schema definitions (.sql DDL). The code is tracked; the database file itself lives in data_root/Database on the local machine only.",
+          "_git": "tracked",
+          "_created_by": "scaffold",
+          "Minerva": {
+            "_desc": "Minerva plans (*.minerva.yaml) for the Database code",
+            "_git": "tracked",
+            "_created_by": "scaffold"
+          }
+        },
+        "Utilities": {
+          "_desc": "Shared helper modules and utility notebooks",
+          "_git": "tracked",
+          "_created_by": "scaffold",
+          "Minerva": {
+            "_desc": "Minerva plans (*.minerva.yaml) for the Utilities code",
+            "_git": "tracked",
+            "_created_by": "scaffold"
+          }
+        },
+        "Nuclear_Scaling_Core": {
+          "_desc": "Installable package of shared modules (pip install -e . --no-deps in each environment). Replaces src/ and all sys.path imports; see its README.md for the decision record.",
+          "_git": "tracked",
+          "_created_by": "scaffold",
+          "_files": [
+            "pyproject.toml",
+            "README.md"
+          ],
+          "nuclear_scaling": {
+            "_desc": "The importable package: nsdb, experiment_config, project_paths, paths_config, nsplots, radial_surface",
+            "_git": "tracked",
+            "_created_by": "scaffold"
+          }
+        }
+      },
+      "Deprecated": {
+        "_desc": "Permanent archive of retired versions. Mirrors the active tree (Python/<folder>/, R/<folder>/) so an old version sits at the same relative path it had when active. Archived files are for reference; use the matching git tag for a runnable copy.",
+        "_machines": [
+          "local",
+          "cheaha"
+        ],
+        "_git": "tracked",
+        "_created_by": "scaffold",
+        "_files": [
+          "DEPRECATED.md"
+        ],
+        "Python": {
+          "_desc": "Same subfolders as Python/, created as needed when something is retired",
+          "_git": "tracked",
+          "_created_by": "scaffold"
+        },
+        "R": {
+          "_desc": "Same subfolders as R/, created as needed when something is retired",
+          "_git": "tracked",
+          "_created_by": "scaffold"
+        }
+      }
+    },
+    "Models": {
+      "_desc": "Models saved during training (checkpoints, training outputs). Must be listed in .gitignore. A model is copied to data_root/Inputs/Models only when it becomes a callable model for segmentation.",
+      "_machines": [
+        "local",
+        "cheaha"
+      ],
+      "_git": "ignored",
+      "_created_by": "scaffold"
+    },
+    "_to_delete": {
+      "_desc": "Temporary quarantine for files awaiting review before deletion. Must be listed in .gitignore. Emptied periodically; nothing here is expected to survive.",
+      "_machines": [
+        "local",
+        "cheaha"
+      ],
+      "_git": "ignored",
+      "_created_by": "scaffold"
+    },
+    "Docs": {
+      "_desc": "Presentation materials, manuscripts, plan documents and other project writing. Kept beside the code but never committed.",
+      "_machines": [
+        "local",
+        "cheaha"
+      ],
+      "_git": "ignored",
+      "_created_by": "scaffold"
+    }
+  },
+  "data_root": {
+    "_path": "/data/user/tdeibert/Nuclear_Scaling",
+    "_desc": "Where data is written out and stored. Lives on Cheaha; mirrored locally through the /data/user/tdeibert symlink, so paths are identical everywhere. Never under git.",
+    "_machines": [
+      "local",
+      "cheaha"
+    ],
+    "_git": "n/a",
+    "_created_by": "scaffold",
+    "Inputs": {
+      "_desc": "Everything the pipeline and training read from",
+      "_machines": [
+        "local",
+        "cheaha"
+      ],
+      "_git": "n/a",
+      "_created_by": "scaffold",
+      "Models": {
+        "_desc": "Callable models used during segmentation. Separate from the training Models folder in the code root.",
+        "_machines": [
+          "local",
+          "cheaha"
+        ],
+        "_git": "n/a",
+        "_created_by": "scaffold"
+      },
+      "Raw_Images": {
+        "_desc": "Raw hyperstacks, grouped by condition",
+        "_machines": [
+          "local",
+          "cheaha"
+        ],
+        "_git": "n/a",
+        "_created_by": "scaffold",
+        "Condition": {
+          "_desc": "One folder per experimental condition. Each holds the raw .tif files (named <experiment_id>, e.g. control_extract_1.1) and their Acquisition sidecar JSONs.",
+          "_git": "n/a",
+          "_created_by": "scaffold",
+          "Control": {
+            "_git": "n/a",
+            "_created_by": "scaffold",
+            "Regions_of_Interest": {
+              "_desc": "Fiji RoiSet.zip files for this condition",
+              "_git": "n/a",
+              "_created_by": "scaffold"
+            }
+          },
+          "P150_CC1": {
+            "_git": "n/a",
+            "_created_by": "scaffold",
+            "Regions_of_Interest": {
+              "_desc": "Fiji RoiSet.zip files for this condition",
+              "_git": "n/a",
+              "_created_by": "scaffold"
+            }
+          },
+          "CDR2": {
+            "_git": "n/a",
+            "_created_by": "scaffold",
+            "Regions_of_Interest": {
+              "_desc": "Fiji RoiSet.zip files for this condition",
+              "_git": "n/a",
+              "_created_by": "scaffold"
+            }
+          },
+          "Membrane_Addback": {
+            "_git": "n/a",
+            "_created_by": "scaffold",
+            "Regions_of_Interest": {
+              "_desc": "Fiji RoiSet.zip files for this condition",
+              "_git": "n/a",
+              "_created_by": "scaffold"
+            }
+          }
+        }
+      },
+      "Training_Data": {
+        "_desc": "Vulcan training patches",
+        "_machines": [
+          "local",
+          "cheaha"
+        ],
+        "_git": "n/a",
+        "_created_by": "scaffold"
+      }
+    },
+    "Runs": {
+      "_desc": "Parent folder for segmentation runs. The scaffold creates only this empty folder; each run folder inside it is created by the pipeline.",
+      "_machines": [
+        "cheaha",
+        "local"
+      ],
+      "_git": "n/a",
+      "_created_by": "scaffold",
+      "_run_template": {
+        "_pattern": "<experiment_id>__cfg-<config_hash>",
+        "_desc": "One folder per experiment x config. Created on Cheaha; database_export/ is pulled to local for import.",
+        "_created_by": "LARGE_FOV_Nuclear_Pipeline_v18.1",
+        "_TODO": "Fill in the remaining run subfolders from v18.1's RunPaths",
+        "database_export": {
+          "_desc": "Exporter output: one CSV per table. Input to the local importer.",
+          "_files": [
+            "Experimental_Cfg.csv",
+            "Nuclei.csv",
+            "NucleusZStack.csv",
+            "RadialProfile.csv",
+            "RawIntensities.csv"
+          ]
+        }
+      }
+    },
+    "Database": {
+      "_desc": "SQLite database for the whole project. LOCAL ONLY: never on Cheaha, never in git. The importer reads Runs/*/database_export/ and writes here.",
+      "_machines": [
+        "local"
+      ],
+      "_git": "n/a",
+      "_created_by": "scaffold",
+      "Radial_Profiles": {
+        "_desc": "zstd parquet files holding bulk radial-profile rows; the database keeps only pointer rows to these",
+        "_machines": [
+          "local"
+        ],
+        "_git": "n/a",
+        "_created_by": "importer"
+      }
+    },
+    "Outputs": {
+      "_desc": "Finished products made from the data (not pipeline run output, which lives in Runs/)",
+      "_machines": [
+        "local",
+        "cheaha"
+      ],
+      "_git": "n/a",
+      "_created_by": "scaffold",
+      "Figures": {
+        "_desc": "Figure components for papers and presentations",
+        "_git": "n/a",
+        "_created_by": "scaffold",
+        "Images": {
+          "_desc": "Image panels: montages, representative crops, annotated micrographs",
+          "_git": "n/a",
+          "_created_by": "scaffold"
+        },
+        "Plots": {
+          "_desc": "Data plots: rose plots, growth curves, significance plots (from R or Python)",
+          "_git": "n/a",
+          "_created_by": "scaffold"
+        }
+      }
+    }
+  }
+}
