@@ -49,9 +49,10 @@ False; full dataset generation has not been run as part of creating this file.
   1.5 um are unknown for nucleus/NPC; blur is unknown for NPC; late puncta are negative.
 - Ten uint8 label channels are retained; aligned nine-head float32 weight sidecars
   encode source confidence and zero out unknown targets. Phase 3 must use these weights.
-- Gold and classical z targets use validated per-nucleus columns at the provisional
-  calibrated `geometry_z_step_um` scale. Failed columns retain masks and lose only
-  axial supervision; no sphere-derived nucleus absence or cap negatives are emitted.
+- Gold and classical nucleus z targets intentionally use the 2.0 um acquisition
+  step. Droplet sphere geometry independently uses the provisional calibrated
+  2.18 um step. Failed columns retain masks and lose only axial supervision;
+  no sphere-derived nucleus absence or cap negatives are emitted.
 
 Sampling uses deterministic droplet centres on supported planes plus every gold
 nucleus centre and manual droplet centre. Empty categories have separate sampling
@@ -80,6 +81,8 @@ extra = '''    # ---- Phase 2 source precedence, uncertainty, and sampling ----
     npc_roi_near_frac: float = 0.50
     npc_roi_blur_dz: int = 2
     npc_orphan_dilate_um: float = 1.5
+    z_target_step_um: float = 2.0
+    label_weight_dtype: str = "float16"
 
 '''
 c = c.replace('    def __post_init__(self):', extra+'    def __post_init__(self):')
@@ -87,7 +90,8 @@ fields = ('gold_complete_timepoints','gold_roi_weight','empty_plane_guard_dz',
           'empty_droplet_sample_fraction','empty_focal_sample_fraction','npc_early_max_t',
           'npc_roi_pair_frac','npc_roi_near_frac','npc_roi_blur_dz','npc_orphan_dilate_um',
           'classical_filler_weight','negative_patch_weight','seed','equatorial_band_planes',
-          'nucleus_channel_idx','npc_channel_idx','membrane_channel_idx','n_channels','image_root')
+          'nucleus_channel_idx','npc_channel_idx','membrane_channel_idx','n_channels','image_root',
+          'z_target_step_um','label_weight_dtype')
 c = c.replace('    _GEN_FIELDS = _INPUT_FIELDS + _SHARED_LABEL_FIELDS + _GEOM_FIELDS + _CLASSICAL_FIELDS',
               '    _PHASE2_FIELDS = '+repr(fields)+'\n'
               '    _GEN_FIELDS = tuple(dict.fromkeys(_INPUT_FIELDS + _SHARED_LABEL_FIELDS + _GEOM_FIELDS + _CLASSICAL_FIELDS + _GOLD_FIELDS + _PHASE2_FIELDS))')

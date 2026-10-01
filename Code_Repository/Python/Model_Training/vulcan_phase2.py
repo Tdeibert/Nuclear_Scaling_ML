@@ -212,9 +212,9 @@ def p2_z_columns(items, cfg=cfg):
     if not items:
         return None
     zcfg = copy.copy(cfg)
-    # Explicitly use the provisional calibrated physical scale for label targets
-    # AND z-column validation. Acquisition metadata stays unchanged on cfg.
-    zcfg.z_step_um = cfg.geometry_z_step_um
+    # Nucleus z-offset supervision intentionally uses the acquisition step.
+    # Droplet sphere geometry remains independently calibrated at 2.18 um.
+    zcfg.z_step_um = getattr(cfg, 'z_target_step_um', cfg.z_step_um)
     return assign_z(items, zcfg, verbose=False)
 
 
@@ -323,7 +323,7 @@ def p2_compose(context, state, z, box, mode='gold', cfg=cfg):
     y0, x0, y1, x1 = box; shape = (y1-y0, x1-x0)
     lab = np.full(shape+(N_LABEL_CHANNELS,), UNANNOTATED, np.uint8)
     lab[..., DROPLET_SOURCE_IDX] = DSRC_NONE
-    weights = np.zeros(shape+(N_HEADS,), np.float32)
+    weights = np.zeros(shape+(N_HEADS,), np.dtype(getattr(cfg, 'label_weight_dtype', 'float16')))
     yy, xx = np.ogrid[y0:y1, x0:x1]
     H, W = context['hs'].shape[-2:]
     valid = np.broadcast_to((yy >= 0) & (yy < H) & (xx >= 0) & (xx < W), shape)
@@ -630,7 +630,9 @@ def p2_build(mode='gold', timepoints=None, cfg=cfg):
     for sub in ('images','labels','weights','qc'): (root/sub).mkdir(exist_ok=False)
     manifest=dict(status='building',mode=mode,gen_hash=cfg.gen_hash,gold_hash=cfg.gold_hash,
                   storage_channels=STORAGE_CHANNELS,weight_heads=HEAD_NAMES,
-                  geometry_z_step_um=cfg.geometry_z_step_um,timepoints=list(times),
+                  geometry_z_step_um=cfg.geometry_z_step_um,
+                  z_target_step_um=getattr(cfg,'z_target_step_um',cfg.z_step_um),
+                  weight_dtype=getattr(cfg,'label_weight_dtype','float16'),timepoints=list(times),
                   roi_sha256={k:p2_file_digest(p) for k,p in context['paths'].items() if p is not None},
                   roi_paths={k:str(Path(p).resolve()) for k,p in context['paths'].items() if p is not None},
                   config={k:str(v) if isinstance(v,Path) else v for k,v in vars(cfg).items()
@@ -674,6 +676,7 @@ def p2_build(mode='gold', timepoints=None, cfg=cfg):
     all_columns=pd.concat(column_frames,ignore_index=True) if column_frames else pd.DataFrame()
     zsummary=dict(n_columns=len(all_columns),
                   n_validated=int(all_columns.validated.sum()) if len(all_columns) else 0,
+                  z_target_step_um=getattr(cfg,'z_target_step_um',cfg.z_step_um),
                   geometry_z_step_um=cfg.geometry_z_step_um)
     (root/'z_cluster_summary.json').write_text(json.dumps(zsummary,indent=2),encoding='utf8')
     all_columns.to_csv(root/'z_cluster_flags.csv',index=False)

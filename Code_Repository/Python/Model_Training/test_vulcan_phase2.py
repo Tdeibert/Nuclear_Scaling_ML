@@ -186,6 +186,13 @@ class Phase2Tests(unittest.TestCase):
         self.assertTrue(result['mask'].any())
         self.assertFalse((result['mask'] & nucleus).any())
 
+    def test_intentional_z_target_and_weight_storage(self):
+        self.assertEqual(getattr(self.cfg,'z_target_step_um',self.cfg.z_step_um),2.0)
+        self.assertEqual(self.cfg.geometry_z_step_um,2.18)
+        self.assertEqual(self.ctx['zcols'].cfg.z_step_um,2.0)
+        lab,w=self.compose()
+        self.assertEqual(w.dtype,np.dtype('float16'))
+
     def test_classical_rejection_stays_unknown(self):
         self.cfg.gold_complete_timepoints=()
         plane=self.state['planes'][(0,8)]
