@@ -3,10 +3,10 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --mem=320G
 #SBATCH --gres=gpu:1
-#SBATCH --partition=amperenodes-medium
-#SBATCH --time=24:00:00
+#SBATCH --partition=amperenodes
+#SBATCH --time=12:00:00
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 #
@@ -15,23 +15,21 @@
 #   sbatch vulcan_2_5_3.sbatch check                     # config, pools, GPU; writes nothing
 #   sbatch vulcan_2_5_3.sbatch classical,train,segtest   # build classical pool, train, test
 #
-# Partition / time (docs.rc.uab.edu/cheaha/slurm/gpu): amperenodes allows up to 12 h,
-# amperenodes-medium up to 48 h. 24 h covers the classical build plus a full 200-epoch
-# run with headroom; for a shorter job use the faster-queuing partition, e.g.
-#   sbatch --partition=amperenodes --time=12:00:00 vulcan_2_5_3.sbatch train,segtest
-# Training is resumable: if the wall time runs short it stops MARGIN_MIN (30) minutes
-# early, saves model + optimizer + early-stopping state, and this script queues the
-# next job. The classical build is NOT resumable: if a job dies inside it, move the
-# incomplete training_patches_* folder aside before resubmitting.
+# Partition / time: amperenodes (up to 12 h) for shorter queue waits. If the classical
+# build plus 200 epochs do not fit in 12 h, training stops MARGIN_MIN (30) minutes
+# early, saves model + optimizer + early-stopping state, and this script queues a
+# continuation job (train,segtest) that resumes at the next epoch. For one long job:
+#   sbatch --partition=amperenodes-medium --time=24:00:00 vulcan_2_5_3.sbatch classical,train,segtest
+# The classical build is NOT resumable: if a job dies inside it, move the incomplete
+# training_patches_* folder aside before resubmitting.
 #
 # Data: train/segtest copy the patch pools to node-local NVMe (/local/$USER/$SLURM_JOB_ID),
 # as RC recommends for A100s, and the copy is deleted when the job ends. Set
 # VULCAN_SCRATCH=0 to read straight from GPFS instead.
 #
-# Resources: 16 CPUs feed the tf.data augmentation workers (RC suggests >= 2 per GPU).
-# 64 GB is ample for training and the classical build; check MaxRSS with
+# Resources: 16 CPUs feed the tf.data augmentation workers (RC suggests >= 2 per GPU);
+# 320 GB matches the interactive allocation. Check actual use after the first run:
 #   sacct -j <jobid> --format=JobID,Elapsed,MaxRSS,AllocTRES%60
-# after the first run and adjust.
 set -uo pipefail
 
 STAGES="${1:-check}"
