@@ -16,6 +16,11 @@ definitions and setup run, then calls the requested stages explicitly:
              so the sbatch wrapper resubmits itself.
   segtest    p3_segmentation_test on the best checkpoints (holdout tile).
 
+--scratch copies the patch pools to node-local NVMe (/local/$USER/$SLURM_JOB_ID by
+default) before train/segtest and points cfg.out_root there. Cheaha RC strongly
+recommends this on amperenodes: GPFS cannot feed an A100. Falls back to GPFS if the
+pools do not fit. The sbatch wrapper deletes the scratch copy when the job ends.
+
 Exit codes: 0 = requested stages finished; 75 = training incomplete (resubmit);
 1 = error. A JSON summary per job is written to --log-dir (default: the submit dir).
 
@@ -28,6 +33,7 @@ Usage (from Python/Model_Training on a compute node or in an sbatch script):
 import argparse
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -129,6 +135,31 @@ def slurm_remaining_s():
 # ---------------------------------------------------------------------------
 # Stages
 # ---------------------------------------------------------------------------
+def stage_to_scratch(ns, args):
+    """Copy the patch pools to node-local scratch and point cfg.out_root at the copy."""
+    cfg = ns["cfg"]
+    base = Path(args.scratch_dir or f"/local/{os.environ.get('USER', 'user')}/{os.environ.get('SLURM_JOB_ID', 'local')}")
+    pools = [p for p in (cfg.reviewed_root, cfg.training_root) if (p / "manifest.json").exists()]
+    if not pools:
+        log("scratch: no complete pools to stage; training reads GPFS"); return
+    need = sum(f.stat().st_size for p in pools for f in p.rglob("*") if f.is_file())
+    base.mkdir(parents=True, exist_ok=True)
+    free = shutil.disk_usage(base).free
+    if need > 0.9 * free:
+        log(f"scratch: pools need {need / 1e9:.0f} GB but {base} has {free / 1e9:.0f} GB free; reading GPFS")
+        return
+    t0 = time.time()
+    for p in pools:
+        dst = base / p.name
+        if not dst.exists():
+            shutil.copytree(p, dst)
+        n_src = sum(1 for f in p.rglob("*") if f.is_file()); n_dst = sum(1 for f in dst.rglob("*") if f.is_file())
+        if n_src != n_dst:
+            raise RuntimeError(f"scratch copy of {p.name} incomplete: {n_dst}/{n_src} files")
+    log(f"scratch: staged {need / 1e9:.1f} GB ({len(pools)} pools) to {base} in {(time.time() - t0) / 60:.1f} min")
+    cfg.out_root = base
+
+
 def stage_check(ns, args, summary):
     cfg = ns["cfg"]; tf = ns["tf"]
     gpus = [d.name for d in tf.config.list_physical_devices("GPU")]
@@ -234,6 +265,8 @@ def main(argv=None, after_cell=None):
     p.add_argument("--margin-min", type=float, default=30.0,
                    help="train: reserve for the epoch in flight + checkpoint (> one epoch)")
     p.add_argument("--allow-cpu", action="store_true")
+    p.add_argument("--scratch", action="store_true", help="stage pools to node-local scratch for train/segtest")
+    p.add_argument("--scratch-dir", default=None, help="default /local/$USER/$SLURM_JOB_ID")
     p.add_argument("--segtest-t", default=None); p.add_argument("--segtest-z", default=None)
     p.add_argument("--log-dir", default=os.environ.get("SLURM_SUBMIT_DIR", os.getcwd()))
     args = p.parse_args(argv)
@@ -251,8 +284,11 @@ def main(argv=None, after_cell=None):
         log(f"loading notebook definitions from {args.notebook}")
         ns = load_definitions(args.notebook, after_cell=after_cell)
         install_figure_saver(ns, log_dir / f"vulcan_{job}_figures")
+        staged = False
         for stage in stages:
             log(f"=== stage {stage} ===")
+            if args.scratch and not staged and stage in ("train", "segtest"):
+                stage_to_scratch(ns, args); staged = True
             if stage == "check":
                 stage_check(ns, args, summary)
             elif stage == "classical":
