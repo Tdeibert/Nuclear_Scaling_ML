@@ -1,0 +1,25 @@
+{
+  "job": "40675979",
+  "host": "c0236",
+  "stages": [
+    "classical",
+    "train",
+    "segtest"
+  ],
+  "argv": [
+    "--stages",
+    "classical,train,segtest",
+    "--margin-min",
+    "30",
+    "--reviewed-checks",
+    "--scratch",
+    "--scratch-dir",
+    "/local/tdeibert/40675979"
+  ],
+  "resubmit": 0,
+  "started": "Thu Oct  1 16:43:00 2026",
+  "error": "RuntimeError: gold pool was built under a different configuration than the notebook now describes; the classical pool must match it (training would refuse the mix)",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/tdeibert/Projects/Nuclear_Scaling/Code_Repository/Python/Model_Training/vulcan_2_5_3_batch.py\", line 295, in main\n    stage_classical(ns, args, summary)\n  File \"/home/tdeibert/Projects/Nuclear_Scaling/Code_Repository/Python/Model_Training/vulcan_2_5_3_batch.py\", line 193, in stage_classical\n    raise RuntimeError(\"gold pool was built under a different configuration than the notebook now \"\nRuntimeError: gold pool was built under a different configuration than the notebook now describes; the classical pool must match it (training would refuse the mix)\n",
+  "finished": "Thu Oct  1 16:43:41 2026",
+  "exit_code": 1
+}

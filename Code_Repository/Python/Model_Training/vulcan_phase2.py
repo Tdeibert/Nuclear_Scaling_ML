@@ -719,7 +719,9 @@ def list_phase2_patch_files(cfg=cfg):
         for triple in p2_pool_files(root):
             # Gold supersedes the same spatial sample regardless of droplet ID.
             stem=triple[0].stem
-            match=re.search(r't(\d+)_z(\d+)_d\d+_y(\d+)_x(\d+)',stem)
+            match=re.search(r't(\d+)_z(\d+)_d\d+_y(-?\d+)_x(-?\d+)',stem)
+            if match is None:
+                raise RuntimeError(f'Unrecognized Phase 2 patch stem: {stem}')
             key=match.groups()
             if key not in seen: result.append(triple); seen.add(key)
     return result
