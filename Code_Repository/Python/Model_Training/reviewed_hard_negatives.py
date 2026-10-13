@@ -73,6 +73,7 @@ def export_artifact_candidates(cfg, grouped, review_ids, output_dir):
             ax.set_title('Z%d%s'%(zz,' CENTER' if offset==0 else ' (center mask projected)'));ax.axis('off')
         fig.suptitle('%s / %s / %d pixels\nApprove only if the ENTIRE center-plane cyan region is non-nuclear'%(row.review_id,candidate_id,mask.sum()))
         fig.tight_layout();fig.savefig(output_dir/'previews'/(candidate_id+'.png'),dpi=140);plt.close(fig)
+        if len(records)%10==0:print('Exported %d / %d review previews'%(len(records),len(table)),flush=True)
     manifest=dict(schema=1,status='candidates_only',raw_image=_identity(cfg.input_image_path),
         source_masks=_identity(cfg.nucleus_instance_hyperstack_path),pixel_size_um=float(cfg.pixel_size_um),
         channel_indices=dict(nls=int(cfg.nuclear_channel_index),npc=int(cfg.npc_channel_index),membrane=int(cfg.membrane_channel_index)),
@@ -82,6 +83,61 @@ def export_artifact_candidates(cfg, grouped, review_ids, output_dir):
     review.to_csv(output_dir/'review.csv',index=False)
     print('Review:',output_dir/'review.csv','|',len(review),'components. No labels approved automatically.')
     print('Set decision=artifact_negative only for exact reviewed masks; use real/uncertain/skip otherwise. Enter reviewer.')
+    return output_dir
+
+
+def combine_reviewed_candidates(review_dirs, output_dir):
+    """Combine completed reviews without changing their decisions or source files.
+
+    Refuse duplicate candidates and mismatched provenance rather than choosing an
+    approval automatically. The resulting folder is usable by the pool builder.
+    """
+    import shutil
+    roots = [Path(p).resolve() for p in review_dirs]
+    output_dir = Path(output_dir)
+    if not roots or output_dir.exists():
+        raise ValueError('Provide reviews and a new output folder')
+    manifests = []; tables = []; records = []; seen = set(); sources = []
+    contract = ['raw_image', 'source_masks', 'pixel_size_um', 'channel_indices', 'source_model']
+    for root in roots:
+        manifest = json.loads((root/'candidates.json').read_text())
+        table = pd.read_csv(root/'review.csv').fillna('')
+        known = {r['candidate_id']: r for r in manifest['candidates']}
+        if len(known) != len(manifest['candidates']) or table.candidate_id.duplicated().any():
+            raise ValueError('Duplicate candidates in '+str(root))
+        if set(table.candidate_id) != set(known):
+            raise ValueError('Review candidate set changed: '+str(root))
+        if not set(table.decision) <= {'artifact_negative', 'real', 'uncertain', 'skip'}:
+            raise ValueError('Review is incomplete or contains invalid decisions: '+str(root))
+        approved = table[table.decision.eq('artifact_negative')]
+        if approved.reviewer.astype(str).str.strip().eq('').any():
+            raise ValueError('Approved rows require a reviewer')
+        if manifests and any(manifest[k] != manifests[0][k] for k in contract):
+            raise ValueError('Review provenance differs: '+str(root))
+        if seen & set(known):
+            raise ValueError('Overlapping batches; resolve duplicate decisions explicitly')
+        for rec in manifest['candidates']:
+            path = (root/rec['mask_file']).resolve()
+            if root not in path.parents or _digest(path) != rec['mask_sha256']:
+                raise ValueError('Reviewed mask changed or path invalid: '+rec['candidate_id'])
+            records.append((root, dict(rec)))
+        seen.update(known); manifests.append(manifest)
+        table['source_review'] = str(root); tables.append(table)
+        sources.append(dict(path=str(root), review_sha256=_digest(root/'review.csv'),
+                            candidates_sha256=_digest(root/'candidates.json')))
+    output_dir.mkdir(parents=True, exist_ok=False)
+    (output_dir/'masks').mkdir()
+    combined = dict(manifests[0]); combined['candidates'] = []
+    combined['created'] = datetime.now().isoformat(); combined['source_reviews'] = sources
+    for root, rec in records:
+        target = 'masks/'+rec['candidate_id']+'.npy'
+        shutil.copy2(root/rec['mask_file'], output_dir/target)
+        rec['mask_file'] = target; combined['candidates'].append(rec)
+    table = pd.concat(tables, ignore_index=True)
+    table['mask_file'] = ['masks/'+cid+'.npy' for cid in table.candidate_id]
+    table.to_csv(output_dir/'review.csv', index=False)
+    _json(output_dir/'candidates.json', combined)
+    print('Combined', len(table), 'reviewed components;', int(table.decision.eq('artifact_negative').sum()), 'approved negatives.')
     return output_dir
 
 
@@ -151,7 +207,8 @@ def build_reviewed_negative_pool(review_dir, output_dir, cfg, *, gold_rows,
     if set(review.candidate_id)!=set(known):raise ValueError('Review candidates changed; re-export')
     gold={}
     for r in gold_rows:
-        if r['source']=='gold':gold.setdefault((int(r['t']),int(r['z'])),[]).append(r)
+        if r['source']=='gold' and holdout_reason(r['t'],r['cy'],r['cx'],cfg)=='train':
+            gold.setdefault((int(r['t']),int(r['z'])),[]).append(r)
     if not gold:raise ValueError('Validated gold rows required for conflict checking')
     prepared=[]
     for row in approved.itertuples():
@@ -172,6 +229,8 @@ def build_reviewed_negative_pool(review_dir, output_dir, cfg, *, gold_rows,
         review_sha256=_digest(review_dir/'review.csv'),candidates_sha256=_digest(review_dir/'candidates.json'),
         raw_image=manifest['raw_image'],training_signature=_training_signature(cfg),
         base_model_name=str(cfg.model_name),weight=float(weight),heads=HEADS,
+        gold_corrections={str(r['gold_correction_manifest']):_digest(r['gold_correction_manifest'])
+                          for r in gold_rows if r.get('gold_correction_manifest')},
         policy='explicit reviewed component negatives only; other pixels/heads unknown',patches=[])
     _json(output_dir/'manifest.json',pool)
     metadata=[];quarantine=[];ps=cfg.patch_size
@@ -212,6 +271,8 @@ def load_reviewed_negative_rows(pool_dir,cfg):
     if m.get('status')!='complete':raise ValueError('Incomplete hard-negative pool')
     if m['raw_image']!=_identity(cfg.image_file) or m['training_signature']!=_training_signature(cfg):raise ValueError('Hard-negative configuration/input mismatch')
     if m['heads']!=HEADS:raise ValueError('Head layout mismatch')
+    for path,digest in m.get('gold_corrections',{}).items():
+        if _digest(path)!=digest:raise ValueError('Gold correction provenance changed')
     rows=[]
     for saved in m['patches']:
         r=dict(saved)
@@ -254,6 +315,8 @@ def enable_hard_negative_training(namespace,cfg,pool_dir,*,baseline_cfg):
         if 'SPLITS' in namespace:namespace['SPLITS']['train']=train
         if verbose:print('Added',len(additions),'reviewed hard negatives; validation unchanged; model:',active_cfg.model_name)
         return train,val
+    split.prepared_cfg=cfg
     namespace['p3_split']=split;namespace['_HN_SPLIT_ENABLED']=True
+    namespace['HN_PREPARED_CFG']=cfg
     print('Enabled hard-negative split for NEW model:',cfg.model_name)
     print('No training started. Keep existing real-positive patches and validation unchanged.')
