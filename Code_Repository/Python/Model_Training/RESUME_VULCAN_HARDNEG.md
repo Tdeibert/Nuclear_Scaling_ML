@@ -1,5 +1,21 @@
 # Resume the reviewed-hard-negative run
 
+## Standalone resume on a compute allocation
+
+An alternative to the notebook recovery cell is:
+
+```bash
+/home/tdeibert/.conda/envs/ml_tf_2.15/bin/python -u resume_vulcan_hardneg.py --job-id "$SLURM_JOB_ID"
+```
+
+This loads only selected notebook definitions, verifies the existing run directory,
+restores the committed pools, and resumes model and optimizer state. It displays
+elapsed time during setup and a training batch progress bar with ETA. The time
+budget reserves 45 minutes of allocation time for completing the last epoch.
+Do not run notebook G5 concurrently with this runner.
+
+## Notebook resume
+
 Saved on October 13, 2026: epoch **8** complete, best validation nuclear quality
 **0.9417250156402588** at epoch 4, early-stopping wait 4, training not finished.
 The checkpoint includes the optimizer. The next epoch is epoch 9.
