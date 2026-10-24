@@ -41,7 +41,7 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 
 EXTRA=()
 [[ "${VULCAN_CHECK_ONLY:-0}" == "1" ]] && EXTRA+=(--check-only)
-python -u run_vulcan_3_0.py --job-id "${SLURM_JOB_ID}" "${EXTRA[@]}"
+python -u run_vulcan_3_0.py --job-id "${SLURM_JOB_ID}" ${EXTRA[@]+"${EXTRA[@]}"}
 rc=$?
 
 if [[ $rc -eq 75 ]]; then
