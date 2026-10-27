@@ -16,12 +16,14 @@ import fcntl
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-NOTEBOOK = HERE / 'vulcan_training_3_0.ipynb'
+NOTEBOOK = Path(os.environ.get('VULCAN_NOTEBOOK', HERE / 'vulcan_training_3_0.ipynb')).resolve()  # per-run frozen copy
 DEF_TAG = 'vulcan-def'
 MARGIN_S = 45 * 60          # one ~28 min epoch + validation + checkpoint
+EXIT_INCOMPLETE = 75        # budget spent before training finished; resume in a new job
 
 
 def remaining_seconds(job):
@@ -44,6 +46,7 @@ def load_definitions():
                 and DEF_TAG in c.get('metadata', {}).get('tags', [])]
     if not selected:
         raise RuntimeError(f'No cells tagged {DEF_TAG!r} in {NOTEBOOK}')
+    print('notebook:', NOTEBOOK, flush=True)
     ns = {'__name__': '__main__', '__file__': str(NOTEBOOK)}
     for c in selected:
         source = c['source'] if isinstance(c['source'], str) else ''.join(c['source'])
@@ -81,10 +84,13 @@ def main():
 
     budget = remaining_seconds(args.job_id) - MARGIN_S
     if budget < 30 * 60:
-        raise RuntimeError('Not enough allocation time left for an epoch plus checkpoint margin')
+        print('Not enough allocation time left for an epoch plus margin; deferring', flush=True)
+        sys.exit(EXIT_INCOMPLETE)
     print(f'training budget {budget / 3600:.2f} h ({MARGIN_S // 60} min margin)', flush=True)
     result = ns['p3_train'](cfg, time_budget_s=budget)
     print('training returned:', result['status'], flush=True)
+    if result['status'] != 'complete':
+        sys.exit(EXIT_INCOMPLETE)      # tells the sbatch script to queue the next job
 
 
 if __name__ == '__main__':
